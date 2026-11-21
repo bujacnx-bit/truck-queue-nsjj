@@ -1,0 +1,15 @@
+{
+  "name": "truck-queue-system",
+  "version": "1.0.0",
+  "description": "ระบบจัดการคิวรถขนส่งขึ้นสินค้าที่คลังสินค้า",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": ["truck", "queue", "warehouse", "logistics"],
+  "author": "",
+  "license": "ISC"
+}

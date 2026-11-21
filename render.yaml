@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: truck-queue-system
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_VERSION
+        value: 22.12.0
