@@ -697,11 +697,13 @@ const server = http.createServer((req, res) => {
     filePath = '/report.html';
   }
 
-  const absolutePath = path.join(PUBLIC_DIR, filePath);
-
-  if (!absolutePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403);
-    return res.end('Access Denied');
+  // Check in PUBLIC_DIR first, fallback to root directory
+  let absolutePath = path.join(PUBLIC_DIR, filePath);
+  if (!fs.existsSync(absolutePath)) {
+    const fallbackPath = path.join(__dirname, filePath);
+    if (fs.existsSync(fallbackPath)) {
+      absolutePath = fallbackPath;
+    }
   }
 
   fs.stat(absolutePath, (err, stats) => {
