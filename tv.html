@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จอแสดงคิวรถขึ้นสินค้า | TV ลานจอด</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
+</head>
+<body class="tv-mode">
+
+  <div class="tv-container">
+    
+    <!-- TV Header -->
+    <header class="tv-header">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <span style="font-size: 2.8rem;">🚚</span>
+        <div>
+          <h1 style="font-size: 2.2rem; font-weight: 900; letter-spacing: 1px; color: #f8fafc;">
+            สถานะคิวขึ้นสินค้า (LOADING QUEUE)
+          </h1>
+          <div style="color: #94a3b8; font-size: 1.1rem; font-weight: 600;">
+            คลังสินค้า - จุดที่ 1 (รถทั่วไป) & จุดที่ 2 (เทรลเลอร์)
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <!-- Audio Enable Button -->
+        <button id="btnSoundToggle" class="sound-toggle-btn" onclick="enableAudio()">
+          🔇 คลิกเพื่อเปิดเสียงประกาศ
+        </button>
+        <!-- Live Clock -->
+        <div class="tv-clock" id="tvClock">00:00:00</div>
+      </div>
+    </header>
+
+    <!-- Main TV Grid -->
+    <div class="tv-grid">
+      
+      <!-- Left: Zone 1 (3 Bays) -->
+      <div>
+        <div class="tv-zone-title">
+          <span>📍 จุดที่ 1: รถเล็ก / รถ 6 ล้อ / รถ 10 ล้อ</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;" id="tvZone1Container">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Right: Zone 2 (Trailer Bay) -->
+      <div>
+        <div class="tv-zone-title" style="color: #c084fc;">
+          <span>🚜 จุดที่ 2: รถเทรลเลอร์</span>
+        </div>
+        <div id="tvZone2Container">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom: Waiting Queues Ticker -->
+    <div style="margin-top: 24px; background: var(--dark-card); border: 1px solid var(--dark-border); border-radius: 16px; padding: 18px 24px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="font-size: 1.3rem; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+          <span>⏳ คิวที่กำลังรอเตรียมตัว (NEXT QUEUE)</span>
+        </div>
+        <div style="font-size: 1rem; color: #94a3b8; font-weight: 600;" id="tvWaitingSummary">
+          รอคิวทั้งหมด 0 คัน
+        </div>
+      </div>
+
+      <div id="tvWaitingList" style="display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px;">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let systemState = null;
+    let sseSource = null;
+    let audioUnlocked = false;
+    let audioCtx = null;
+    const speechQueue = [];
+    let isSpeaking = false;
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('tvClock').innerText = now.toLocaleTimeString('th-TH');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Audio Chime via Web Audio API
+    function playDingDong() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        
+        // Tone 1: E5 (659Hz)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(659.25, now);
+        gain1.gain.setValueAtTime(0.3, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.5);
+
+        // Tone 2: C5 (523Hz)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(523.25, now + 0.25);
+        gain2.gain.setValueAtTime(0.35, now + 0.25);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(now + 0.25);
+        osc2.stop(now + 0.9);
+      } catch (e) {
+        console.error('Audio chime error:', e);
+      }
+    }
+
+    function enableAudio() {
+      audioUnlocked = true;
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
+      playDingDong();
+      
+      const btn = document.getElementById('btnSoundToggle');
+      btn.innerText = '🔊 ระบบเสียงประกาศ: เปิดใช้งาน';
+      btn.style.background = '#15803d';
+
+      // Test speak
+      speakThaiText('ระบบเสียงประกาศพร้อมใช้งานค่ะ');
+    }
+
+    function speakThaiText(text) {
+      if (!window.speechSynthesis) return;
+
+      speechQueue.push(text);
+      processSpeechQueue();
+    }
+
+    function processSpeechQueue() {
+      if (isSpeaking || speechQueue.length === 0) return;
+      isSpeaking = true;
+
+      const text = speechQueue.shift();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'th-TH';
+      utterance.rate = 0.95; // Slightly slower for clarity
+      utterance.pitch = 1.0;
+
+      // Find Thai voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
+      if (thaiVoice) utterance.voice = thaiVoice;
+
+      utterance.onend = () => {
+        isSpeaking = false;
+        setTimeout(processSpeechQueue, 300);
+      };
+      utterance.onerror = () => {
+        isSpeaking = false;
+        setTimeout(processSpeechQueue, 300);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    async function fetchState() {
+      try {
+        const res = await fetch('/api/state');
+        if (!res.ok) return;
+        systemState = await res.json();
+        renderTV();
+      } catch (e) {
+        console.error('Fetch TV state error:', e);
+      }
+    }
+
+    function renderTV() {
+      if (!systemState) return;
+
+      // Render Zone 1 Bays (ID 1, 2, 3)
+      const z1Container = document.getElementById('tvZone1Container');
+      const z1Bays = systemState.bays.filter(b => b.zone_id === 1);
+      z1Container.innerHTML = z1Bays.map(renderTVBay).join('');
+
+      // Render Zone 2 Bay (Trailer)
+      const z2Container = document.getElementById('tvZone2Container');
+      const z2Bays = systemState.bays.filter(b => b.zone_id === 2);
+      z2Container.innerHTML = z2Bays.map(renderTVBay).join('');
+
+      // Render Waiting Ticker
+      renderWaitingTicker();
+    }
+
+    function renderTVBay(bay) {
+      const isCalled = bay.status === 'CALLED';
+      const isLoading = bay.status === 'LOADING';
+      const cardClass = isCalled ? 'tv-bay-card called' : (isLoading ? 'tv-bay-card loading' : 'tv-bay-card');
+
+      if (!bay.current_queue_id) {
+        return `
+          <div class="${cardClass}">
+            <div class="tv-bay-name">${bay.name}</div>
+            <div class="tv-idle-text">-- ว่าง --</div>
+            <div style="color: #64748b; font-size: 0.95rem; margin-top: 8px;">(พร้อมรับรถ)</div>
+          </div>
+        `;
+      }
+
+      let statusBadge = isCalled 
+        ? '<div style="color: #fbbf24; font-size: 1.1rem; font-weight: 800; margin-bottom: 6px;">🔔 กรุณาเข้าช่องโหลด</div>'
+        : '<div style="color: #4ade80; font-size: 1.1rem; font-weight: 800; margin-bottom: 6px;">🚚 กำลังขึ้นสินค้า</div>';
+
+      return `
+        <div class="${cardClass}">
+          <div class="tv-bay-name">${bay.name}</div>
+          ${statusBadge}
+          <div class="tv-queue-no">${bay.queue_number}</div>
+          <div class="tv-plate-no">${bay.plate_number}</div>
+          <div style="color: #94a3b8; font-size: 1rem; font-weight: 600; margin-top: 8px;">
+            ${bay.vehicle_type_label}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderWaitingTicker() {
+      const container = document.getElementById('tvWaitingList');
+      const totalWait = systemState.waitingZone1.length + systemState.waitingZone2.length;
+      document.getElementById('tvWaitingSummary').innerText = `รอคิวทั้งหมด ${totalWait} คัน (ทั่วไป ${systemState.waitingZone1.length} | เทรลเลอร์ ${systemState.waitingZone2.length})`;
+
+      const allWaiting = [
+        ...systemState.waitingZone1.map(q => ({ ...q, zoneLabel: 'จุด 1' })),
+        ...systemState.waitingZone2.map(q => ({ ...q, zoneLabel: 'จุด 2 (เทรลเลอร์)' }))
+      ].sort((a, b) => a.id - b.id);
+
+      if (allWaiting.length === 0) {
+        container.innerHTML = `
+          <div style="color: #64748b; font-size: 1.2rem; font-weight: 600; padding: 10px 0;">
+            ไม่มีคิวรอในขณะนี้
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = allWaiting.slice(0, 8).map((q, idx) => `
+        <div style="background: rgba(255, 255, 255, 0.06); border: 1px solid var(--dark-border); border-radius: 12px; padding: 12px 18px; min-width: 170px; text-align: center; flex-shrink: 0;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; font-weight: 700;">
+            <span>#${idx + 1}</span>
+            <span style="color: #38bdf8;">${q.zoneLabel}</span>
+          </div>
+          <div style="font-size: 1.8rem; font-weight: 900; color: #f8fafc; margin: 4px 0;">
+            ${q.queue_number}
+          </div>
+          <div style="font-size: 1.05rem; font-weight: 700; color: #cbd5e1;">
+            ${q.plate_number}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // SSE Event Listener
+    function initSSE() {
+      if (sseSource) sseSource.close();
+      sseSource = new EventSource('/api/events');
+      
+      sseSource.addEventListener('UPDATE', (e) => {
+        systemState = JSON.parse(e.data);
+        renderTV();
+      });
+
+      sseSource.addEventListener('VOICE_ANNOUNCEMENT', (e) => {
+        const data = JSON.parse(e.data);
+        if (audioUnlocked) {
+          playDingDong();
+          setTimeout(() => {
+            speakThaiText(data.voiceText);
+          }, 600);
+        }
+      });
+    }
+
+    fetchState();
+    initSSE();
+  </script>
+</body>
+</html>

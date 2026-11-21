@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ป้าย QR Code รับบัตรคิว | สำหรับพิมพ์ติดหน้าคลัง</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    @media print {
+      body { background: #ffffff !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+      .print-box { border: 4px solid #000 !important; box-shadow: none !important; }
+    }
+    .print-box {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #ffffff;
+      border: 3px solid #1e293b;
+      border-radius: 20px;
+      padding: 36px 30px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body style="background: #f1f5f9; padding: 20px;">
+
+  <!-- Control Bar (hidden in print) -->
+  <div class="no-print" style="max-width: 600px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 14px 20px; border-radius: 12px; border: 1px solid #cbd5e1;">
+    <a href="/staff" class="nav-btn">⬅️ กลับหน้าเจ้าหน้าที่</a>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-primary btn-sm" onclick="window.print()">
+        🖨️ พิมพ์ป้ายนี้ (Print A4)
+      </button>
+    </div>
+  </div>
+
+  <!-- Printable Poster Container -->
+  <div class="print-box">
+    
+    <!-- Header -->
+    <div style="margin-bottom: 20px;">
+      <div style="font-size: 3rem; margin-bottom: 8px;">🚚</div>
+      <h1 style="font-size: 2.2rem; font-weight: 900; color: #0f172a; line-height: 1.2;">
+        สแกนรับบัตรคิวขึ้นสินค้า
+      </h1>
+      <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary); margin-top: 6px;">
+        คลังสินค้า (TRUCK LOADING QUEUE)
+      </div>
+    </div>
+
+    <!-- QR Code Image -->
+    <div style="background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 16px; padding: 20px; display: inline-block; margin-bottom: 20px;">
+      <img id="qrImg" src="" alt="QR Code" style="width: 260px; height: 260px; display: block; margin: 0 auto; border-radius: 8px;">
+    </div>
+
+    <!-- Direct URL -->
+    <div style="margin-bottom: 24px;">
+      <div style="font-size: 0.95rem; color: #64748b; font-weight: 600;">หรือพิมพ์เข้าใช้งานโดยตรงผ่านเบราว์เซอร์:</div>
+      <div id="urlText" style="font-size: 1.35rem; font-weight: 800; color: #1e3a8a; background: #eff6ff; display: inline-block; padding: 6px 18px; border-radius: 8px; margin-top: 4px; font-family: monospace;">
+        กำลังโหลด...
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div style="text-align: left; background: #f8fafc; border-radius: 14px; padding: 18px 24px; border: 1px solid #e2e8f0;">
+      <div style="font-weight: 800; font-size: 1.05rem; color: #1e293b; margin-bottom: 8px;">
+        📌 ขั้นตอนการรับคิว:
+      </div>
+      <ol style="margin-left: 20px; color: #334155; font-size: 0.95rem; line-height: 1.6;">
+        <li>ใช้กล้องมือถือสแกน <b>QR Code</b> ด้านบน</li>
+        <li>กรอก <b>ทะเบียนรถ</b> และเลือก <b>ประเภทรถ</b> (ทั่วไป หรือ เทรลเลอร์)</li>
+        <li>กดรับบัตรคิว และเปิดหน้าจอดูสถานะคิว หรือรอฟังเสียงเรียกเข้าช่องโหลด</li>
+      </ol>
+    </div>
+
+    <!-- Target Point Info -->
+    <div style="display: flex; gap: 12px; margin-top: 20px; text-align: left;">
+      <div style="flex: 1; background: #eff6ff; border-radius: 10px; padding: 10px 14px; border: 1px solid #bfdbfe;">
+        <div style="font-weight: 800; color: #1e40af; font-size: 0.95rem;">📍 จุดที่ 1 (ช่อง 1, 2, 3)</div>
+        <div style="font-size: 0.85rem; color: #1e3a8a;">สำหรับ รถเล็ก, 6 ล้อ, 10 ล้อ</div>
+      </div>
+      <div style="flex: 1; background: #f3e8ff; border-radius: 10px; padding: 10px 14px; border: 1px solid #ddd6fe;">
+        <div style="font-weight: 800; color: #6b21a8; font-size: 0.95rem;">📍 จุดที่ 2 (เทรลเลอร์)</div>
+        <div style="font-size: 0.85rem; color: #581c87;">สำหรับ รถเทรลเลอร์โดยเฉพาะ</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- URL Customizer (No-print) -->
+  <div class="no-print" style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 18px 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
+    <div style="font-weight: 700; font-size: 1rem; margin-bottom: 6px;">⚙️ ปรับแต่ง URL ของ QR Code</div>
+    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">
+      หากเชื่อมต่อคนขับผ่าน Wi-Fi ของคลัง ให้ใช้ IP ของเครื่อง หรือใส่โดเมนเนม/ลิงก์ Cloudflare Tunnel
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="customUrlInput" class="form-input" style="font-size: 0.95rem;" placeholder="http://192.168.1.xxx:3000">
+      <button class="btn btn-primary btn-sm" onclick="applyCustomUrl()">อัปเดต QR</button>
+    </div>
+  </div>
+
+  <script>
+    let currentTargetUrl = '';
+
+    async function initQR() {
+      try {
+        const res = await fetch('/api/system-info');
+        const info = await res.json();
+        currentTargetUrl = info.url; // e.g. http://192.168.1.50:3000
+        document.getElementById('customUrlInput').value = currentTargetUrl;
+        updateQRCode(currentTargetUrl);
+      } catch (e) {
+        currentTargetUrl = window.location.origin;
+        updateQRCode(currentTargetUrl);
+      }
+    }
+
+    function updateQRCode(url) {
+      document.getElementById('urlText').innerText = url;
+      // Use free high-speed QR API with high error correction
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&margin=2&data=${encodeURIComponent(url)}`;
+      document.getElementById('qrImg').src = qrApiUrl;
+    }
+
+    function applyCustomUrl() {
+      const val = document.getElementById('customUrlInput').value.trim();
+      if (!val) return;
+      currentTargetUrl = val;
+      updateQRCode(currentTargetUrl);
+    }
+
+    initQR();
+  </script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>รับบัตรคิวขึ้นสินค้า | คลังสินค้า</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚚</text></svg>">
+</head>
+<body>
+
+  <!-- Top Simple Header -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-icon">🚚</span>
+      <span>ระบบคิวรถขึ้นสินค้า</span>
+    </div>
+    <div class="nav-links">
+      <a href="/staff" class="nav-btn" target="_blank">เจ้าหน้าที่</a>
+      <a href="/tv" class="nav-btn" target="_blank">จอคิว TV</a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- View 1: Registration Form -->
+    <div id="registerView" class="mobile-card">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">ลงทะเบียนรับบัตรคิว</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">กรุณากรอกข้อมูลเพื่อรับลำดับคิวขึ้นสินค้า</p>
+      </div>
+
+      <form id="queueForm" onsubmit="handleRegister(event)">
+        <!-- License Plate -->
+        <div class="form-group">
+          <label class="form-label" for="plateNumber">
+            ทะเบียนรถ <span style="color: var(--danger);">*</span>
+          </label>
+          <input type="text" id="plateNumber" class="form-input" placeholder="เช่น 1กข-1234 หรือ 70-5555" required autofocus>
+          <div class="form-hint">กรอกเลขทะเบียนรถที่มาขึ้นสินค้า</div>
+        </div>
+
+        <!-- Vehicle Type Selector -->
+        <div class="form-group">
+          <label class="form-label">
+            ประเภทรถ <span style="color: var(--danger);">*</span>
+          </label>
+          <div class="vehicle-grid">
+            <div class="vehicle-option selected" onclick="selectVehicle('small', this)">
+              <div class="v-icon">🚐</div>
+              <div class="v-name">รถเล็ก (4 ล้อ)</div>
+              <div class="v-desc">จุดที่ 1 (ช่อง 1-3)</div>
+            </div>
+            <div class="vehicle-option" onclick="selectVehicle('6_wheel', this)">
+              <div class="v-icon">🚚</div>
+              <div class="v-name">รถ 6 ล้อ</div>
+              <div class="v-desc">จุดที่ 1 (ช่อง 1-3)</div>
+            </div>
+            <div class="vehicle-option" onclick="selectVehicle('10_wheel', this)">
+              <div class="v-icon">🚛</div>
+              <div class="v-name">รถ 10 ล้อ</div>
+              <div class="v-desc">จุดที่ 1 (ช่อง 1-3)</div>
+            </div>
+            <div class="vehicle-option" onclick="selectVehicle('trailer', this)">
+              <div class="v-icon">🚜</div>
+              <div class="v-name">รถเทรลเลอร์</div>
+              <div class="v-desc">จุดที่ 2 (เทรลเลอร์)</div>
+            </div>
+          </div>
+          <input type="hidden" id="vehicleType" value="small">
+        </div>
+
+        <!-- Driver Phone (Optional) -->
+        <div class="form-group">
+          <label class="form-label" for="driverPhone">เบอร์โทรศัพท์คนขับ (ถ้ามี)</label>
+          <input type="tel" id="driverPhone" class="form-input" placeholder="เช่น 0812345678">
+          <div class="form-hint">สำหรับเจ้าหน้าที่ติดต่อกรณีเร่งด่วน</div>
+        </div>
+
+        <!-- Order / DO (Optional) -->
+        <div class="form-group">
+          <label class="form-label" for="orderNo">เลขออเดอร์ / ใบสั่งสินค้า (ถ้ามี)</label>
+          <input type="text" id="orderNo" class="form-input" placeholder="เช่น DO-20261120">
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary" id="btnSubmit" style="margin-top: 10px;">
+          <span>🎫 กดรับบัตรคิวทันที</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- View 2: Live Ticket View -->
+    <div id="ticketView" class="mobile-card" style="display: none;">
+      
+      <!-- Big Ticket Card -->
+      <div class="ticket-box">
+        <div style="font-size: 0.95rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">หมายเลขคิวของคุณ</div>
+        <div class="ticket-number" id="ticketNumber">A-001</div>
+        <div class="ticket-plate" id="ticketPlate">1กข-1234</div>
+        <div style="margin-top: 12px; font-size: 0.95rem; opacity: 0.95;" id="ticketVehicleLabel">รถเล็ก (4 ล้อ)</div>
+      </div>
+
+      <!-- Live Status Banner -->
+      <div id="statusAlert" class="status-alert waiting">
+        <div style="font-size: 1.15rem; font-weight: 800;" id="statusTitle">กำลังรอคิว</div>
+        <div style="font-size: 0.95rem; margin-top: 4px;" id="statusDesc">มีรถรออยู่ข้างหน้าคุณอีก 0 คัน</div>
+      </div>
+
+      <!-- Destination Target Box -->
+      <div style="background: #f8fafc; border-radius: 12px; padding: 14px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <div style="font-size: 0.85rem; color: var(--text-muted);">จุดขึ้นสินค้าที่ต้องเข้า:</div>
+        <div style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-top: 2px;" id="targetZoneName">
+          จุดที่ 1 (รถเล็ก/6ล้อ/10ล้อ)
+        </div>
+        <div style="font-size: 0.85rem; color: var(--primary); margin-top: 4px; font-weight: 600;" id="assignedBayDisplay">
+          (รอระบบเรียกเข้าช่องโหลด)
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn btn-primary" onclick="checkCurrentTicket(true)">
+          🔄 ตรวจสอบสถานะล่าสุด
+        </button>
+        <button class="btn btn-danger-outline" onclick="cancelTicket()">
+          ❌ ยกเลิกคิวนี้
+        </button>
+        <button class="btn btn-sm" id="btnNewTicket" style="display: none; background: #e2e8f0; color: #334155; margin-top: 8px;" onclick="resetToRegister()">
+          ➕ รับบัตรคิวใหม่
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    let currentQueueId = localStorage.getItem('truck_queue_id');
+    let selectedVehicle = 'small';
+    let sseSource = null;
+
+    function selectVehicle(type, el) {
+      selectedVehicle = type;
+      document.getElementById('vehicleType').value = type;
+      document.querySelectorAll('.vehicle-option').forEach(opt => opt.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const plate = document.getElementById('plateNumber').value.trim();
+      const phone = document.getElementById('driverPhone').value.trim();
+      const order = document.getElementById('orderNo').value.trim();
+      const btn = document.getElementById('btnSubmit');
+
+      if (!plate) {
+        alert('กรุณากรอกทะเบียนรถ');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'กำลังออกบัตรคิว...';
+
+      try {
+        const res = await fetch('/api/queue/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plate_number: plate,
+            vehicle_type: selectedVehicle,
+            driver_phone: phone,
+            order_no: order
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'เกิดข้อผิดพลาดในการลงทะเบียน');
+          btn.disabled = false;
+          btn.innerText = '🎫 กดรับบัตรคิวทันที';
+          return;
+        }
+
+        // Save Ticket ID
+        currentQueueId = data.id;
+        localStorage.setItem('truck_queue_id', currentQueueId);
+        showTicket(data);
+        initSSE();
+      } catch (err) {
+        alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+        btn.disabled = false;
+        btn.innerText = '🎫 กดรับบัตรคิวทันที';
+      }
+    }
+
+    async function checkCurrentTicket(manual = false) {
+      if (!currentQueueId) return;
+
+      try {
+        const res = await fetch(`/api/queue/${currentQueueId}`);
+        if (!res.ok) {
+          // Ticket not found or deleted
+          if (manual) alert('ไม่พบข้อมูลคิวนี้ในระบบ');
+          resetToRegister();
+          return;
+        }
+
+        const data = await res.json();
+        showTicket(data);
+      } catch (e) {
+        console.error('Error fetching ticket:', e);
+      }
+    }
+
+    function showTicket(queue) {
+      document.getElementById('registerView').style.display = 'none';
+      document.getElementById('ticketView').style.display = 'block';
+
+      document.getElementById('ticketNumber').innerText = queue.queue_number;
+      document.getElementById('ticketPlate').innerText = queue.plate_number;
+      document.getElementById('ticketVehicleLabel').innerText = queue.vehicle_type_label;
+
+      const zoneName = queue.zone_target === 1 ? 'จุดที่ 1 (รถเล็ก/6ล้อ/10ล้อ - ช่อง 1-3)' : 'จุดที่ 2 (รถเทรลเลอร์)';
+      document.getElementById('targetZoneName').innerText = zoneName;
+
+      const alertBox = document.getElementById('statusAlert');
+      const title = document.getElementById('statusTitle');
+      const desc = document.getElementById('statusDesc');
+      const bayDisplay = document.getElementById('assignedBayDisplay');
+      const btnNew = document.getElementById('btnNewTicket');
+
+      alertBox.className = 'status-alert ' + queue.status.toLowerCase();
+      btnNew.style.display = 'none';
+
+      if (queue.status === 'WAITING') {
+        title.innerText = '⏳ กำลังรอคิว';
+        desc.innerText = queue.inFrontCount > 0 
+          ? `มีรถรออยู่ข้างหน้าคุณอีก ${queue.inFrontCount} คัน กรุณารอที่ลานจอด`
+          : 'คุณคือคิวถัดไป! กรุณาเตรียมความพร้อมที่รถ';
+        bayDisplay.innerText = '(รอเจ้าหน้าที่เรียกเข้าช่องโหลด)';
+        bayDisplay.style.color = 'var(--text-muted)';
+      } else if (queue.status === 'CALLED') {
+        title.innerText = '🔔 ถึงคิวแล้ว! กรุณานำรถเข้าช่องโหลด';
+        desc.innerText = `เชิญเข้า: ${queue.assigned_bay_name || 'ช่องโหลด'}`;
+        bayDisplay.innerText = `👉 เชิญเข้า: ${queue.assigned_bay_name}`;
+        bayDisplay.style.color = 'var(--success)';
+        // Vibration if supported
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 500]);
+      } else if (queue.status === 'LOADING') {
+        title.innerText = '🚚 กำลังขึ้นสินค้า...';
+        desc.innerText = `ณ ${queue.assigned_bay_name}`;
+        bayDisplay.innerText = `กำลังดำเนินการที่: ${queue.assigned_bay_name}`;
+        bayDisplay.style.color = 'var(--primary)';
+      } else if (queue.status === 'COMPLETED') {
+        title.innerText = '✅ ขึ้นสินค้าเสร็จสิ้น';
+        desc.innerText = 'ขอบคุณที่ใช้บริการ ขอให้เดินทางปลอดภัยครับ';
+        bayDisplay.innerText = 'เสร็จสิ้นเรียบร้อย';
+        btnNew.style.display = 'block';
+      } else if (queue.status === 'CANCELLED' || queue.status === 'SKIPPED') {
+        title.innerText = '⚠️ คิวถูกยกเลิกหรือข้าม';
+        desc.innerText = 'หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่คลัง';
+        btnNew.style.display = 'block';
+      }
+    }
+
+    async function cancelTicket() {
+      if (!currentQueueId) return;
+      if (!confirm('คุณต้องการยกเลิกคิวนี้ใช่หรือไม่?')) return;
+
+      try {
+        await fetch('/api/queue/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ queue_id: currentQueueId })
+        });
+        resetToRegister();
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการยกเลิกคิว');
+      }
+    }
+
+    function resetToRegister() {
+      localStorage.removeItem('truck_queue_id');
+      currentQueueId = null;
+      document.getElementById('ticketView').style.display = 'none';
+      document.getElementById('registerView').style.display = 'block';
+      document.getElementById('queueForm').reset();
+      selectVehicle('small', document.querySelector('.vehicle-option'));
+      const btn = document.getElementById('btnSubmit');
+      btn.disabled = false;
+      btn.innerText = '🎫 กดรับบัตรคิวทันที';
+    }
+
+    function initSSE() {
+      if (sseSource) sseSource.close();
+      sseSource = new EventSource('/api/events');
+      sseSource.addEventListener('UPDATE', (e) => {
+        if (currentQueueId) {
+          checkCurrentTicket();
+        }
+      });
+    }
+
+    // Auto load ticket if exists
+    if (currentQueueId) {
+      checkCurrentTicket();
+      initSSE();
+    }
+  </script>
+</body>
+</html>

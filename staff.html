@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แผงควบคุมคิวขึ้นสินค้า | เจ้าหน้าที่คลัง</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
+  <style>
+    .stat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-icon">📦</span>
+      <div>
+        <div>แผงควบคุมคิวขึ้นสินค้า</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">คลังสินค้า - จุดโหลดสินค้า 2 จุด (4 ช่อง)</div>
+      </div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="stat-badge" style="background: #fef3c7; color: #b45309;">
+        <span>⏳ รอคิว:</span>
+        <span id="statWaiting" style="font-size: 1.1rem;">0</span>
+      </div>
+      <div class="stat-badge" style="background: #dcfce7; color: #15803d;">
+        <span>✅ เสร็จแล้ววันนี้:</span>
+        <span id="statCompleted" style="font-size: 1.1rem;">0</span>
+      </div>
+
+      <div class="nav-links">
+        <a href="/report" class="nav-btn" target="_blank" style="background: #ecfdf5; color: #047857; font-weight: 700;">📊 รายงานประวัติ</a>
+        <a href="/tv" class="nav-btn" target="_blank">📺 จอ TV ลานจอด</a>
+        <a href="/qr" class="nav-btn" target="_blank">🖨️ ป้าย QR Code</a>
+        <a href="/" class="nav-btn" target="_blank">📱 หน้าคนขับ</a>
+        <button class="nav-btn" onclick="openManualModal()" style="border:none; cursor:pointer; background: #e0e7ff; color: #3730a3;">
+          ➕ เพิ่มคิวแทนคนขับ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container" style="max-width: 1400px;">
+    
+    <div class="staff-grid">
+      
+      <!-- Left Column: Loading Bays by Zones -->
+      <div>
+        
+        <!-- Zone 1: Normal Trucks (3 Bays) -->
+        <div class="zone-section">
+          <div class="zone-header">
+            <div>
+              <h2 style="font-size: 1.3rem; font-weight: 800; color: #1e3a8a;">
+                📍 จุดที่ 1: รถเล็ก / รถ 6 ล้อ / รถ 10 ล้อ
+              </h2>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">
+                รองรับการขึ้นสินค้าพร้อมกัน 3 คัน (ช่อง 1, ช่อง 2, ช่อง 3)
+              </div>
+            </div>
+            <span class="badge badge-blue">3 ช่องโหลด</span>
+          </div>
+
+          <div class="bays-grid" id="zone1BaysContainer">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Zone 2: Trailer Trucks (1 Bay) -->
+        <div class="zone-section" style="border-left: 6px solid #8b5cf6;">
+          <div class="zone-header">
+            <div>
+              <h2 style="font-size: 1.3rem; font-weight: 800; color: #5b21b6;">
+                📍 จุดที่ 2: รถเทรลเลอร์ (Trailer)
+              </h2>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">
+                ช่องสำหรับรถบรรทุกยาวและตู้คอนเทนเนอร์โดยเฉพาะ
+              </div>
+            </div>
+            <span class="badge badge-purple">1 ช่องโหลด</span>
+          </div>
+
+          <div class="bays-grid" id="zone2BaysContainer" style="grid-template-columns: 1fr;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Waiting Queues -->
+      <div>
+        <div class="zone-section" style="position: sticky; top: 80px;">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #1e293b;">
+              📋 รายการรถที่กำลังรอคิว
+            </h3>
+            <span id="waitingBadgeCount" class="badge badge-yellow">0 คัน</span>
+          </div>
+
+          <!-- Tabs -->
+          <div style="display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+            <button id="tabBtn1" class="btn btn-sm" style="background: var(--primary); color: white;" onclick="switchQueueTab(1)">
+              จุดที่ 1 ทั่วไป (<span id="countZ1">0</span>)
+            </button>
+            <button id="tabBtn2" class="btn btn-sm" style="background: #f1f5f9; color: #475569;" onclick="switchQueueTab(2)">
+              จุดที่ 2 เทรลเลอร์ (<span id="countZ2">0</span>)
+            </button>
+          </div>
+
+          <!-- Queue Items List -->
+          <div id="queueListContainer" style="max-height: 580px; overflow-y: auto; padding-right: 4px;">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between;">
+            <button class="btn btn-sm" style="background: #f8fafc; color: var(--danger); border: 1px solid #fca5a5;" onclick="resetSystemDaily()">
+              🗑️ ล้างข้อมูลคิว/เริ่มวันใหม่
+            </button>
+            <button class="btn btn-sm" style="background: #f1f5f9; color: #475569;" onclick="fetchState()">
+              🔄 รีเฟรช
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Modal: Manual Add Queue -->
+  <div id="manualModal" class="modal-overlay">
+    <div class="mobile-card" style="width: 100%; max-width: 440px; margin: 0 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 1.2rem; font-weight: 800;">➕ ออกบัตรคิวแทนคนขับ</h3>
+        <button onclick="closeManualModal()" style="border:none; background:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <form onsubmit="handleManualAdd(event)">
+        <div class="form-group">
+          <label class="form-label">ทะเบียนรถ *</label>
+          <input type="text" id="manualPlate" class="form-input" placeholder="เช่น 1กข-1234" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภทรถ *</label>
+          <select id="manualVehicle" class="form-input" style="font-size: 1rem;">
+            <option value="small">🚐 รถเล็ก (4 ล้อ) - เข้าจุด 1</option>
+            <option value="6_wheel">🚚 รถ 6 ล้อ - เข้าจุด 1</option>
+            <option value="10_wheel">🚛 รถ 10 ล้อ - เข้าจุด 1</option>
+            <option value="trailer">🚜 รถเทรลเลอร์ - เข้าจุด 2</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทรศัพท์ (ถ้ามี)</label>
+          <input type="tel" id="manualPhone" class="form-input" placeholder="08xxxxxxxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เลขออเดอร์/DO (ถ้ามี)</label>
+          <input type="text" id="manualOrder" class="form-input" placeholder="DO-xxxx">
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button type="button" class="btn" style="background: #e2e8f0; color: #334155;" onclick="closeManualModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกรับคิว</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Datalist for Forklift Drivers -->
+  <datalist id="forkliftDatalist"></datalist>
+
+  <script>
+    let systemState = null;
+    let activeTab = 1;
+    let sseSource = null;
+
+    async function fetchState() {
+      try {
+        const res = await fetch('/api/state');
+        if (!res.ok) return;
+        systemState = await res.json();
+        renderDashboard();
+      } catch (e) {
+        console.error('Fetch state error:', e);
+      }
+    }
+
+    function renderDashboard() {
+      if (!systemState) return;
+
+      // Update Header Stats
+      document.getElementById('statWaiting').innerText = systemState.stats.waitingTotal;
+      document.getElementById('statCompleted').innerText = systemState.stats.completedToday;
+      document.getElementById('waitingBadgeCount').innerText = `${systemState.stats.waitingTotal} คัน`;
+
+      document.getElementById('countZ1').innerText = systemState.waitingZone1.length;
+      document.getElementById('countZ2').innerText = systemState.waitingZone2.length;
+
+      // Render Zone 1 Bays (ID 1, 2, 3)
+      const zone1Container = document.getElementById('zone1BaysContainer');
+      const zone1Bays = systemState.bays.filter(b => b.zone_id === 1);
+      zone1Container.innerHTML = zone1Bays.map(renderBayCard).join('');
+
+      // Render Zone 2 Bay (ID 4)
+      const zone2Container = document.getElementById('zone2BaysContainer');
+      const zone2Bays = systemState.bays.filter(b => b.zone_id === 2);
+      zone2Container.innerHTML = zone2Bays.map(renderBayCard).join('');
+
+      // Render Waiting Queues List
+      renderQueueList();
+
+      // Update Datalist of Forklift Drivers
+      const datalist = document.getElementById('forkliftDatalist');
+      if (datalist && systemState.forkliftDrivers) {
+        datalist.innerHTML = systemState.forkliftDrivers.map(d => `<option value="${d}">`).join('');
+      }
+    }
+
+    function renderBayCard(bay) {
+      const statusClass = bay.status.toLowerCase();
+      let statusBadge = '<span class="badge badge-gray">ว่าง</span>';
+      if (bay.status === 'CALLED') statusBadge = '<span class="badge badge-yellow">🔔 เรียกแล้ว (กำลังเข้าเทียบ)</span>';
+      if (bay.status === 'LOADING') statusBadge = '<span class="badge badge-green">🚚 กำลังขึ้นสินค้า</span>';
+
+      let truckContent = `
+        <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
+          <div style="font-size: 2rem; opacity: 0.4;">🅿️</div>
+          <div style="font-size: 0.95rem; font-weight: 600; margin-top: 4px;">ช่องโหลดว่าง</div>
+        </div>
+      `;
+
+      if (bay.current_queue_id) {
+        truckContent = `
+          <div class="bay-truck-info">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 1.5rem; font-weight: 900; color: var(--primary);">${bay.queue_number || '-'}</span>
+              <span class="badge badge-blue">${bay.vehicle_type_label || '-'}</span>
+            </div>
+            <div style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin-top: 2px;">
+              ทะเบียน: ${bay.plate_number || '-'}
+            </div>
+            ${bay.driver_phone ? `<div style="font-size: 0.85rem; color: #475569;">📞 โทร: ${bay.driver_phone}</div>` : ''}
+            ${bay.order_no ? `<div style="font-size: 0.85rem; color: #475569;">📦 ออเดอร์: ${bay.order_no}</div>` : ''}
+            ${bay.forklift_driver ? `
+              <div style="font-size: 0.85rem; font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 3px 8px; border-radius: 6px; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                🚜 โฟล์คลิฟต์: ${bay.forklift_driver}
+                <button onclick="editForkliftDriver(${bay.id}, '${bay.forklift_driver}')" style="border:none; background:none; cursor:pointer; font-size: 0.75rem;" title="แก้ไข">✏️</button>
+              </div>
+            ` : ''}
+            ${bay.started_loading_at ? `<div style="font-size: 0.8rem; color: var(--success); font-weight: 600; margin-top: 4px;">⏱️ เริ่มโหลด: ${bay.started_loading_at.split(' ')[1] || bay.started_loading_at}</div>` : ''}
+          </div>
+        `;
+      }
+
+      let actionsHtml = '';
+      if (bay.status === 'IDLE') {
+        actionsHtml = `
+          <button class="btn btn-primary" onclick="callNextQueue(${bay.id})">
+            📢 เรียกคิวถัดไป
+          </button>
+        `;
+      } else if (bay.status === 'CALLED') {
+        actionsHtml = `
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+            <div>
+              <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">🚜 พนักงานโฟล์คลิฟต์:</label>
+              <input type="text" id="forkliftInput_${bay.id}" list="forkliftDatalist" class="form-input" style="font-size: 0.9rem; padding: 6px 10px;" placeholder="พิมพ์หรือเลือกชื่อพนักงาน">
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-success" style="flex: 2;" onclick="startLoading(${bay.id})">
+                🚚 เริ่มขึ้นของ
+              </button>
+              <button class="btn btn-warning" style="flex: 1;" onclick="announceBay(${bay.id})" title="กดเพื่อประกาศเสียงซ้ำ">
+                🔊 ประกาศ
+              </button>
+            </div>
+            <button class="btn btn-danger-outline btn-sm" onclick="skipBay(${bay.id})">
+              ⏭️ ข้ามคิวนี้ (ไม่มาตามนัด)
+            </button>
+          </div>
+        `;
+      } else if (bay.status === 'LOADING') {
+        actionsHtml = `
+          <button class="btn btn-success" onclick="completeBay(${bay.id})">
+            ✅ โหลดเสร็จสิ้น / ปล่อยรถ
+          </button>
+        `;
+      }
+
+      return `
+        <div class="bay-card ${statusClass}">
+          <div class="bay-title">
+            <span>${bay.name}</span>
+            ${statusBadge}
+          </div>
+          ${truckContent}
+          <div class="bay-actions" style="margin-top: 10px;">
+            ${actionsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderQueueList() {
+      const container = document.getElementById('queueListContainer');
+      const list = activeTab === 1 ? systemState.waitingZone1 : systemState.waitingZone2;
+
+      if (!list || list.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 40px 10px; color: var(--text-muted);">
+            <div style="font-size: 2rem; opacity: 0.3;">⏳</div>
+            <div style="margin-top: 8px; font-weight: 600;">ไม่มีคิวรอในโซนนี้</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map((q, idx) => `
+        <div class="queue-card">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 800; font-size: 1.1rem; color: #1e3a8a;">#${idx + 1} [${q.queue_number}]</span>
+              <span class="badge ${q.zone_target === 1 ? 'badge-blue' : 'badge-purple'}">${q.vehicle_type_label}</span>
+            </div>
+            <div style="font-weight: 700; font-size: 1rem; color: #1e293b; margin-top: 2px;">
+              ทะเบียน: ${q.plate_number}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+              มาถึง: ${q.created_at.split(' ')[1] || q.created_at} ${q.driver_phone ? `| 📞 ${q.driver_phone}` : ''}
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+            <button class="btn btn-primary btn-sm" onclick="callSpecificQueue(${q.id}, ${q.zone_target})">
+              📢 เรียกเข้าช่อง
+            </button>
+            <button class="btn btn-danger-outline btn-sm" style="padding: 2px 6px; font-size: 0.75rem;" onclick="cancelQueueItem(${q.id})">
+              ลบคิว
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function switchQueueTab(tab) {
+      activeTab = tab;
+      document.getElementById('tabBtn1').style.background = tab === 1 ? 'var(--primary)' : '#f1f5f9';
+      document.getElementById('tabBtn1').style.color = tab === 1 ? '#ffffff' : '#475569';
+      document.getElementById('tabBtn2').style.background = tab === 2 ? 'var(--primary)' : '#f1f5f9';
+      document.getElementById('tabBtn2').style.color = tab === 2 ? '#ffffff' : '#475569';
+      renderQueueList();
+    }
+
+    // Actions
+    async function callNextQueue(bayId) {
+      try {
+        const res = await fetch('/api/bay/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: bayId })
+        });
+        const data = await res.json();
+        if (!res.ok) alert(data.error || 'ไม่สามารถเรียกคิวได้');
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      }
+    }
+
+    async function callSpecificQueue(queueId, zoneTarget) {
+      // Find idle bay in this zone
+      const idleBays = systemState.bays.filter(b => b.zone_id === zoneTarget && b.status === 'IDLE');
+      if (idleBays.length === 0) {
+        alert('ไม่มีช่องโหลดว่างในโซนนี้ กรุณารอช่องว่างหรือเคลียร์ช่องเดิมก่อน');
+        return;
+      }
+
+      let selectedBayId = idleBays[0].id;
+      if (idleBays.length > 1) {
+        const bayNames = idleBays.map((b, i) => `${i + 1}. ${b.name}`).join('\n');
+        const choice = prompt(`เลือกช่องโหลดที่ต้องการเรียกเข้า:\n${bayNames}\n(พิมพ์หมายเลข 1-${idleBays.length}):`, '1');
+        if (!choice) return;
+        const index = parseInt(choice, 10) - 1;
+        if (idleBays[index]) selectedBayId = idleBays[index].id;
+      }
+
+      try {
+        const res = await fetch('/api/bay/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: selectedBayId, queue_id: queueId })
+        });
+        const data = await res.json();
+        if (!res.ok) alert(data.error);
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      }
+    }
+
+    async function startLoading(bayId) {
+      const input = document.getElementById(`forkliftInput_${bayId}`);
+      const driverName = input ? input.value.trim() : '';
+
+      try {
+        await fetch('/api/bay/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: bayId, forklift_driver: driverName })
+        });
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function editForkliftDriver(bayId, currentName) {
+      const newName = prompt('แก้ไขชื่อพนักงานโฟล์คลิฟต์:', currentName || '');
+      if (newName === null) return;
+      try {
+        await fetch('/api/bay/update_driver', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: bayId, forklift_driver: newName.trim() })
+        });
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการอัปเดตชื่อพนักงาน');
+      }
+    }
+
+    async function completeBay(bayId) {
+      if (!confirm('ยืนยันขึ้นสินค้าเสร็จสิ้น และปล่อยช่องโหลดให้ว่าง?')) return;
+      try {
+        await fetch('/api/bay/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: bayId })
+        });
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function skipBay(bayId) {
+      if (!confirm('ยืนยันข้ามคิวนี้ (คนขับไม่มาเทียบช่อง)?')) return;
+      try {
+        await fetch('/api/bay/skip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: bayId })
+        });
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function announceBay(bayId) {
+      try {
+        await fetch('/api/bay/announce', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bay_id: bayId })
+        });
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function cancelQueueItem(queueId) {
+      if (!confirm('ยืนยันลบคิวนี้ออกจากระบบ?')) return;
+      try {
+        await fetch('/api/queue/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ queue_id: queueId })
+        });
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function resetSystemDaily() {
+      if (!confirm('⚠️ คำเตือน: คุณต้องการล้างข้อมูลคิวทั้งหมดในระบบใช่หรือไม่? (เหมาะสำหรับเริ่มวันใหม่ หรือทดสอบระบบ)')) return;
+      try {
+        await fetch('/api/system/reset', { method: 'POST' });
+        fetchState();
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด');
+      }
+    }
+
+    // Modal Add
+    function openManualModal() {
+      document.getElementById('manualModal').style.display = 'flex';
+      document.getElementById('manualPlate').focus();
+    }
+    function closeManualModal() {
+      document.getElementById('manualModal').style.display = 'none';
+      document.getElementById('manualPlate').value = '';
+    }
+    async function handleManualAdd(e) {
+      e.preventDefault();
+      const plate = document.getElementById('manualPlate').value.trim();
+      const vehicle = document.getElementById('manualVehicle').value;
+      const phone = document.getElementById('manualPhone').value.trim();
+      const order = document.getElementById('manualOrder').value.trim();
+
+      try {
+        const res = await fetch('/api/queue/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plate_number: plate,
+            vehicle_type: vehicle,
+            driver_phone: phone,
+            order_no: order
+          })
+        });
+        if (res.ok) {
+          closeManualModal();
+          fetchState();
+        } else {
+          const d = await res.json();
+          alert(d.error || 'ผิดพลาด');
+        }
+      } catch (e) {
+        alert('ไม่สามารถเชื่อมต่อได้');
+      }
+    }
+
+    // SSE Real-time listener
+    function initSSE() {
+      if (sseSource) sseSource.close();
+      sseSource = new EventSource('/api/events');
+      sseSource.addEventListener('UPDATE', (e) => {
+        systemState = JSON.parse(e.data);
+        renderDashboard();
+      });
+    }
+
+    fetchState();
+    initSSE();
+  </script>
+</body>
+</html>
